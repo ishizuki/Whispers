@@ -3,6 +3,13 @@ plugins {
     id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.serialization' version '1.9.10'
 }
+
+tasks.register('downloadModel', Exec) {
+    commandLine '/bin/bash', './download_models.sh'
+}
+
+preBuild.dependsOn downloadModel
+
 android {
     namespace 'com.whispercppdemo'
     compileSdk 34
