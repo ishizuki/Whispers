@@ -4,6 +4,22 @@ plugins {
     id 'org.jetbrains.kotlin.plugin.serialization' version '1.9.10'
 }
 
+tasks.register('checkSubmodule') {
+    doLast {
+        def submoduleDir = file("nativelib/whisper_core")
+        if (!submoduleDir.exists() || submoduleDir.list().length == 0) {
+            println "🔄 Initializing submodules..."
+            exec {
+                commandLine "git", "submodule", "update", "--init", "--recursive"
+            }
+        } else {
+            println "✅ Submodule already initialized."
+        }
+    }
+}
+
+preBuild.dependsOn checkSubmodule
+
 tasks.register('downloadModel', Exec) {
     commandLine '/bin/bash', './download_models.sh'
 }

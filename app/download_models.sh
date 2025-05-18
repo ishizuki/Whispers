@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MODEL_DIR="app/src/main/assets/models"
+MODEL_DIR="src/main/assets/models"
 MODEL_NAMES=("ggml-small-q8_0.bin" "ggml-base-q5_1.bin" "ggml-tiny-q5_1.bin")
 BASE_URL="https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
 
