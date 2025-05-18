@@ -48,4 +48,3 @@ google-services.json
 .cxx
 local.properties
 /.kotlin
-app/src/main/assets/models/*.bin
