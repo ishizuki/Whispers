@@ -1,5 +1,6 @@
 package whispers.ui.main
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -10,9 +11,9 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -20,11 +21,18 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun MainScreenEntryPoint(viewModel: MainScreenViewModel) {
+    var selectedIndex by remember { mutableStateOf(-1) }
+
     MainScreen(
         viewModel = viewModel,
         canTranscribe = viewModel.canTranscribe,
         isRecording = viewModel.isRecording,
-        onRecordTapped = viewModel::toggleRecord,
+        selectedIndex = selectedIndex,
+        onSelect = { selectedIndex = it },
+        onRecordTapped = {
+            selectedIndex = viewModel.myRecords.lastIndex
+            viewModel.toggleRecord { selectedIndex = it }
+        },
         onCardClick = viewModel::playRecording
     )
 }
@@ -35,12 +43,13 @@ private fun MainScreen(
     viewModel: MainScreenViewModel,
     canTranscribe: Boolean,
     isRecording: Boolean,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
     onRecordTapped: () -> Unit,
     onCardClick: (String, Int) -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var pendingDeleteIndex by remember { mutableStateOf(-1) }
-    var selectedIndex by remember { mutableStateOf(-1) }
     val listState = rememberLazyListState()
 
     Scaffold(topBar = { TopBar(viewModel) }) { innerPadding ->
@@ -52,16 +61,16 @@ private fun MainScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             RecordingList(
-                viewModel = viewModel,
+                records = viewModel.myRecords,
                 listState = listState,
                 selectedIndex = selectedIndex,
-                onSelect = { selectedIndex = it },
+                canTranscribe = canTranscribe,
+                onSelect = onSelect,
                 onCardClick = onCardClick,
                 onDeleteRequest = {
                     pendingDeleteIndex = it
                     showDeleteDialog = true
                 },
-                canTranscribe = canTranscribe,
                 modifier = Modifier.weight(1f).fillMaxWidth()
             )
 
@@ -96,15 +105,11 @@ private fun TopBar(viewModel: MainScreenViewModel) {
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Mic, contentDescription = null, tint = Color(0xFF2196F3), modifier = Modifier.size(24.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Whisper App",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp),
-                    color = Color.Black
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                LanguageLabel(viewModel.selectedLanguage,viewModel.selectedModel)
+                Icon(Icons.Default.Mic, contentDescription = null, tint = Color(0xFF2196F3))
+                Spacer(Modifier.width(8.dp))
+                Text("Whisper App", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color.Black)
+                Spacer(Modifier.width(12.dp))
+                LanguageLabel(viewModel.selectedLanguage, viewModel.selectedModel)
             }
         },
         actions = { ConfigButtonWithDialog(viewModel) },
@@ -126,33 +131,26 @@ private fun LanguageLabel(languageCode: String, selectedModel: String) {
         modifier = Modifier.padding(start = 4.dp)
     ) {
         Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-            Text(
-                text = "Language: $label",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
-            Text(
-                text = "Model: $selectedModel",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
-            )
+            Text("Language: $label", style = MaterialTheme.typography.labelMedium)
+            Text("Model: $selectedModel", style = MaterialTheme.typography.labelMedium)
         }
     }
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RecordingList(
-    viewModel: MainScreenViewModel,
+    records: List<myRecord>,
     listState: LazyListState,
     selectedIndex: Int,
+    canTranscribe: Boolean,
     onSelect: (Int) -> Unit,
     onCardClick: (String, Int) -> Unit,
     onDeleteRequest: (Int) -> Unit,
-    canTranscribe: Boolean,
     modifier: Modifier = Modifier
 ) {
-    LaunchedEffect(viewModel.myRecords.size, viewModel.myRecords.lastOrNull()?.logs) {
-        if (viewModel.myRecords.isNotEmpty()) listState.animateScrollToItem(viewModel.myRecords.lastIndex)
+    LaunchedEffect(records.size, records.lastOrNull()?.logs) {
+        if (records.isNotEmpty()) listState.animateScrollToItem(records.lastIndex)
     }
 
     LazyColumn(
@@ -161,7 +159,7 @@ private fun RecordingList(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(bottom = 80.dp)
     ) {
-        itemsIndexed(viewModel.myRecords) { index, record ->
+        itemsIndexed(records) { index, record ->
             val isSelected = index == selectedIndex
             val dismissState = rememberDismissState(confirmValueChange = {
                 if (it == DismissValue.DismissedToStart || it == DismissValue.DismissedToEnd) {
@@ -169,29 +167,47 @@ private fun RecordingList(
                     false
                 } else true
             })
+            val animatedCorner by animateDpAsState(
+                targetValue = if (isSelected && !canTranscribe) 48.dp else 16.dp,
+                animationSpec = tween(400), label = "cornerAnim"
+            )
+
+            val scale = if (isSelected && !canTranscribe) {
+                rememberInfiniteTransition().animateFloat(
+                    initialValue = 0.95f,
+                    targetValue = 1.05f,
+                    animationSpec = infiniteRepeatable(tween(800, easing = EaseInOut), RepeatMode.Reverse),
+                    label = "pulse"
+                ).value
+            } else 1f
+
+            val tapModifier = if (canTranscribe) {
+                Modifier.pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { onSelect(index) },
+                        onDoubleTap = {
+                            onSelect(index)
+                            onCardClick(record.absolutePath, index)
+                        }
+                    )
+                }
+            } else Modifier
 
             SwipeToDismiss(
                 state = dismissState,
+                directions = setOf(DismissDirection.StartToEnd),
                 background = {
-                    Box(modifier = Modifier.fillMaxSize().padding(start = 20.dp), contentAlignment = Alignment.CenterStart) {
+                    Box(Modifier.fillMaxSize().padding(start = 20.dp), contentAlignment = Alignment.CenterStart) {
                         Text("削除", color = Color.Red, fontWeight = FontWeight.Bold)
                     }
                 },
-                directions = setOf(DismissDirection.StartToEnd),
                 dismissContent = {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .then(if (canTranscribe) Modifier.pointerInput(Unit) {
-                                detectTapGestures(
-                                    onTap = { onSelect(index) },
-                                    onDoubleTap = {
-                                        onSelect(index)
-                                        onCardClick(viewModel.myRecords[index].absolutePath, index)
-                                    }
-                                )
-                            } else Modifier),
-                        shape = RoundedCornerShape(16.dp),
+                            .graphicsLayer(scaleX = scale, scaleY = scale)
+                            .then(tapModifier),
+                        shape = RoundedCornerShape(animatedCorner),
                         colors = CardDefaults.cardColors(
                             containerColor = when {
                                 isSelected -> MaterialTheme.colorScheme.primaryContainer
@@ -200,12 +216,7 @@ private fun RecordingList(
                             }
                         )
                     ) {
-                        Text(
-                            text = record.logs,
-                            modifier = Modifier.padding(16.dp),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        Text(record.logs, Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             )
@@ -235,10 +246,7 @@ fun StyledButton(
     Button(
         onClick = onClick,
         enabled = enabled,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = color,
-            contentColor = MaterialTheme.colorScheme.onPrimary
-        ),
+        colors = ButtonDefaults.buttonColors(containerColor = color),
         shape = RoundedCornerShape(16.dp),
         elevation = ButtonDefaults.buttonElevation(6.dp),
         modifier = modifier
@@ -249,12 +257,11 @@ fun StyledButton(
 
 @Composable
 fun ConfigButtonWithDialog(viewModel: MainScreenViewModel) {
-
     val languageOptions = listOf("ja" to "日本語", "en" to "English", "sw" to "Swahili")
     val modelOptions = listOf(
-        "ggml-tiny-q5_1.bin"  to "Tiny",
-        "ggml-base-q5_1.bin"  to "Base",
-        //"ggml-small-q8_0.bin" to "Small",
+        "ggml-tiny-q5_1.bin" to "Tiny",
+        "ggml-base-q5_1.bin" to "Base",
+        "ggml-small-q8_0.bin" to "Small",
     )
 
     var expandedLang by remember { mutableStateOf(false) }
@@ -270,59 +277,58 @@ fun ConfigButtonWithDialog(viewModel: MainScreenViewModel) {
             title = { Text("設定") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("言語を選択してください")
-                    Box {
-                        TextButton(onClick = { expandedLang = true }) {
-                            Text(languageOptions.find { it.first == viewModel.selectedLanguage }?.second ?: "選択")
-                        }
-                        DropdownMenu(
-                            expanded = expandedLang,
-                            onDismissRequest = { expandedLang = false }
-                        ) {
-                            languageOptions.forEach { (code, label) ->
-                                DropdownMenuItem(
-                                    text = { Text(label) },
-                                    onClick = {
-                                        viewModel.updateSelectedLanguage(code)
-                                        expandedLang = false
-                                    }
-                                )
-                            }
-                        }
-                    }
+                    DropdownSelector(
+                        label = "言語を選択してください",
+                        selected = languageOptions.find { it.first == viewModel.selectedLanguage }?.second ?: "選択",
+                        options = languageOptions,
+                        onSelect = { viewModel.updateSelectedLanguage(it) },
+                        expanded = expandedLang,
+                        onExpand = { expandedLang = true },
+                        onDismiss = { expandedLang = false }
+                    )
+
                     Divider()
-                    Text("モデルを選択してください")
-                    Box {
-                        TextButton(onClick = { expandedModel = true }) {
-                            Text(modelOptions.find { it.first == viewModel.selectedModel }?.second ?: "選択")
-                        }
-                        DropdownMenu(
-                            expanded = expandedModel,
-                            onDismissRequest = { expandedModel = false }
-                        ) {
-                            modelOptions.forEach { (file, label) ->
-                                DropdownMenuItem(
-                                    text = { Text(label) },
-                                    onClick = {
-                                        viewModel.updateSelectedModel(file)
-                                        expandedModel = false
-                                    }
-                                )
-                            }
-                        }
-                    }
+
+                    DropdownSelector(
+                        label = "モデルを選択してください",
+                        selected = modelOptions.find { it.first == viewModel.selectedModel }?.second ?: "選択",
+                        options = modelOptions,
+                        onSelect = { viewModel.updateSelectedModel(it) },
+                        expanded = expandedModel,
+                        onExpand = { expandedModel = true },
+                        onDismiss = { expandedModel = false }
+                    )
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { viewModel.closeConfigDialog() }) {
-                    Text("OK")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.closeConfigDialog() }) {
-                    Text("キャンセル")
-                }
-            }
+            confirmButton = { TextButton(onClick = { viewModel.closeConfigDialog() }) { Text("OK") } },
+            dismissButton = { TextButton(onClick = { viewModel.closeConfigDialog() }) { Text("キャンセル") } }
         )
+    }
+}
+
+@Composable
+private fun DropdownSelector(
+    label: String,
+    selected: String,
+    options: List<Pair<String, String>>,
+    onSelect: (String) -> Unit,
+    expanded: Boolean,
+    onExpand: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Text(label)
+    Box {
+        TextButton(onClick = onExpand) { Text(selected) }
+        DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+            options.forEach { (key, label) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        onSelect(key)
+                        onDismiss()
+                    }
+                )
+            }
+        }
     }
 }

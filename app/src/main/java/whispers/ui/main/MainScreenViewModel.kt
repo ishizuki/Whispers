@@ -17,6 +17,7 @@ import java.io.File
 import java.util.*
 import kotlinx.serialization.encodeToString
 import androidx.compose.runtime.snapshotFlow
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.collectLatest
 
 private const val LOG_TAG = "MainScreenViewModel"
@@ -120,13 +121,14 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
         }
     }
 
-    fun toggleRecord() = viewModelScope.launch {
+    fun toggleRecord(onUpdateIndex: (Int) -> Unit) = viewModelScope.launch {
         try {
             if (isRecording) {
                 recorder.stopRecording()
                 isRecording = false
                 currentRecordedFile?.let {
                     addNewRecordingLog(it.name, it.absolutePath)
+                    onUpdateIndex(myRecords.lastIndex)
                     transcribeAudio(it)
                 }
             } else {
@@ -181,11 +183,18 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
             val data = readAudioSamples(file)
             val start = System.currentTimeMillis()
             val result = whisperContext?.transcribeData(data, selectedLanguage)
-            val elapsed = System.currentTimeMillis() - start
-            addResultLog(
-                "Done (${elapsed}ms)\nModel: $selectedModel\nLanguage: $selectedLanguage\n$result",
-                index
-            )
+            val elapsedMs = System.currentTimeMillis() - start
+            val seconds = elapsedMs / 1000
+            val milliseconds = elapsedMs % 1000
+            val resultText = buildString {
+                appendLine("✅ Done. ")
+                appendLine("🕒 Finished in ${seconds}.${"%03d".format(milliseconds)}s")
+                appendLine("🎯 Model     : $selectedModel")
+                appendLine("🌐 Language  : $selectedLanguage")
+                appendLine("📝 Converted Text Result")
+                appendLine(result)
+            }
+            addResultLog(resultText, index)
         } catch (e: Exception) {
             Log.e(LOG_TAG, "Transcription error", e)
         } finally {
@@ -193,10 +202,12 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
         }
     }
 
-    private suspend fun readAudioSamples(file: File): FloatArray = withContext(Dispatchers.IO) {
+    suspend fun readAudioSamples(file: File): FloatArray {
         stopPlayback()
         startPlayback(file)
-        decodeWaveFile(file)
+        return withContext(Dispatchers.IO) {
+            decodeWaveFile(file)
+        }
     }
 
     private suspend fun startPlayback(file: File) = withContext(Dispatchers.Main) {

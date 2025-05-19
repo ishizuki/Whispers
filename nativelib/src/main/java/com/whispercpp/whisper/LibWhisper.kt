@@ -24,13 +24,14 @@ class WhisperContext private constructor(private var ptr: Long) {
         val textCount = WhisperLib.getTextSegmentCount(ptr)
         return@withContext buildString {
             for (i in 0 until textCount) {
-                if (printTimestamp) {
-                    val textTimestamp = "[${toTimestamp(WhisperLib.getTextSegmentT0(ptr, i))} --> ${toTimestamp(WhisperLib.getTextSegmentT1(ptr, i))}]"
-                    val textSegment = WhisperLib.getTextSegment(ptr, i)
-                    append("$textTimestamp: $textSegment\n")
-                } else {
-                    append(WhisperLib.getTextSegment(ptr, i))
-                }
+//                if (printTimestamp) {
+//                    val textTimestamp = "[${toTimestamp(WhisperLib.getTextSegmentT0(ptr, i))} --> ${toTimestamp(WhisperLib.getTextSegmentT1(ptr, i))}]"
+//                    val textSegment = WhisperLib.getTextSegment(ptr, i)
+//                    append("$textTimestamp: $textSegment\n")
+//                } else {
+//                    append(WhisperLib.getTextSegment(ptr, i))
+//                }
+                append(WhisperLib.getTextSegment(ptr, i))
             }
         }
     }
