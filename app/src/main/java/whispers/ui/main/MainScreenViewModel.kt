@@ -40,6 +40,20 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
     var myRecords by mutableStateOf(emptyList<myRecord>())
         private set
 
+//    var selectedIndex by mutableStateOf(-1)
+//        private set
+//
+//    fun updateSelectedIndex(index: Int) {
+//        selectedIndex = index
+//    }
+
+    var translateToEnglish by mutableStateOf(false)
+        private set
+
+    fun updateTranslate(toEnglish: Boolean) {
+        translateToEnglish = toEnglish
+    }
+
     // Internals
     private val modelsPath = File(application.filesDir, "models")
     private val samplesPath = File(application.filesDir, "samples")
@@ -182,7 +196,7 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
         try {
             val data = readAudioSamples(file)
             val start = System.currentTimeMillis()
-            val result = whisperContext?.transcribeData(data, selectedLanguage)
+            val result = whisperContext?.transcribeData(data, selectedLanguage, translateToEnglish)
             val elapsedMs = System.currentTimeMillis() - start
             val seconds = elapsedMs / 1000
             val milliseconds = elapsedMs % 1000
@@ -192,6 +206,7 @@ class MainScreenViewModel(private val application: Application) : ViewModel() {
                 appendLine("🎯 Model     : $selectedModel")
                 appendLine("🌐 Language  : $selectedLanguage")
                 appendLine("📝 Converted Text Result")
+                if (translateToEnglish) appendLine("🌐 Translate To Eng")
                 appendLine(result)
             }
             addResultLog(resultText, index)

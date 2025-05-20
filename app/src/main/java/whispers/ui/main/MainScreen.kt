@@ -1,17 +1,67 @@
 package whispers.ui.main
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DismissDirection
+import androidx.compose.material3.DismissValue
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismiss
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDismissState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -102,38 +152,106 @@ private fun MainScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TopBar(viewModel: MainScreenViewModel) {
+
+    var showAboutDialog by remember { mutableStateOf(false) }
+
     TopAppBar(
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Icon(Icons.Default.Mic, contentDescription = null, tint = Color(0xFF2196F3))
-                Spacer(Modifier.width(8.dp))
                 Text("Whisper App", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color.Black)
-                Spacer(Modifier.width(12.dp))
-                LanguageLabel(viewModel.selectedLanguage, viewModel.selectedModel)
+                LanguageLabel(
+                    languageCode = viewModel.selectedLanguage,
+                    selectedModel = viewModel.selectedModel,
+                    modifier = Modifier.align(Alignment.CenterVertically)
+                )
             }
         },
-        actions = { ConfigButtonWithDialog(viewModel) },
+        actions = {
+            IconButton(onClick = { showAboutDialog = true }) {
+                Icon(Icons.Default.Info, contentDescription = "アプリ情報")
+            }
+            ConfigButtonWithDialog(viewModel)
+        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Color(0xFFFFF176),
             titleContentColor = Color.Black,
             actionIconContentColor = Color.DarkGray
         )
     )
+
+    if (showAboutDialog) {
+        AboutDialog(onDismiss = { showAboutDialog = false })
+    }
 }
 
 @Composable
-private fun LanguageLabel(languageCode: String, selectedModel: String) {
-    val label = mapOf("en" to "English", "ja" to "Japanese", "sw" to "Swahili")[languageCode] ?: "Unknown"
+private fun AboutDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("このアプリについて") },
+        text = {
+            Column {
+                Text("Whisper App v1.0")
+                Spacer(Modifier.height(8.dp))
+                Text("このアプリは Whisper.cpp を使用して音声認識を行うオフライン録音アプリです。")
+                Spacer(Modifier.height(4.dp))
+                Text("対応言語: 日本語 / 英語 / スワヒリ語")
+                Spacer(Modifier.height(8.dp))
+                Text("開発者: Shu Ishizuki (石附 支)")
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("閉じる")
+            }
+        }
+    )
+}
+
+@Composable
+private fun LanguageLabel(
+    languageCode: String,
+    selectedModel: String,
+    modifier: Modifier = Modifier
+) {
+    val label = mapOf(
+        "ja" to "日本語",
+        "en" to "English",
+        "sw" to "Swahili",
+        "es" to "Spanish (Español)",
+        "fr" to "French (Français)",
+        "de" to "German (Deutsch)",
+    )[languageCode] ?: "Unknown"
+
     Surface(
         shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.secondaryContainer,
         tonalElevation = 2.dp,
-        modifier = Modifier.padding(start = 4.dp)
+        modifier = modifier
+            .defaultMinSize(minHeight = 36.dp) // TopAppBarと似た高さに合わせる
     ) {
-        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-            Text("Language: $label", style = MaterialTheme.typography.labelMedium)
-            Text("Model: $selectedModel", style = MaterialTheme.typography.labelMedium)
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text("Language: $label", style = MaterialTheme.typography.labelSmall)
+            Text("Model: $selectedModel", style = MaterialTheme.typography.labelSmall)
         }
+//        Row(
+//            verticalAlignment = Alignment.CenterVertically,
+//            modifier = Modifier
+//                .padding(horizontal = 8.dp)
+//                .heightIn(min = 32.dp) // Textが潰れない最低限の高さを確保
+//        ) {
+//            Text("Lang: $label", style = MaterialTheme.typography.labelSmall)
+//            Spacer(modifier = Modifier.width(6.dp))
+//            Text("Model: $selectedModel", style = MaterialTheme.typography.labelSmall)
+//        }
     }
 }
 
@@ -255,13 +373,25 @@ fun StyledButton(
     }
 }
 
+//MODEL_NAMES=("ggml-small-q8_0.bin" "ggml-small-q5_1.bin" "ggml-base-q8_0.bin" "ggml-base-q5_1.bin" "ggml-tiny-q8_0.bin" "ggml-tiny-q5_1.bin")
+
 @Composable
 fun ConfigButtonWithDialog(viewModel: MainScreenViewModel) {
-    val languageOptions = listOf("ja" to "日本語", "en" to "English", "sw" to "Swahili")
+    val languageOptions = listOf(
+        "ja" to "日本語",
+        "en" to "English",
+        "sw" to "Swahili",
+        "es" to "Spanish (Español)",
+        "fr" to "French (Français)",
+        "de" to "German (Deutsch)",
+    )
     val modelOptions = listOf(
-        "ggml-tiny-q5_1.bin" to "Tiny",
-        "ggml-base-q5_1.bin" to "Base",
-        "ggml-small-q8_0.bin" to "Small",
+        "ggml-tiny-q5_1.bin"  to "Tiny 5 Bits",
+        "ggml-tiny-q8_0.bin"  to "Tiny 8 Bits",
+        "ggml-base-q5_1.bin"  to "Base 5 Bits",
+        "ggml-base-q8_0.bin"  to "Base 8 Bits",
+        "ggml-small-q5_1.bin" to "Small 5 Bits",
+        "ggml-small-q8_0.bin" to "Small 8 Bits"
     )
 
     var expandedLang by remember { mutableStateOf(false) }
@@ -298,6 +428,17 @@ fun ConfigButtonWithDialog(viewModel: MainScreenViewModel) {
                         onExpand = { expandedModel = true },
                         onDismiss = { expandedModel = false }
                     )
+
+                    Divider()
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = viewModel.translateToEnglish,
+                            onCheckedChange = { viewModel.updateTranslate(it) }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("英語に翻訳する")
+                    }
                 }
             },
             confirmButton = { TextButton(onClick = { viewModel.closeConfigDialog() }) { Text("OK") } },

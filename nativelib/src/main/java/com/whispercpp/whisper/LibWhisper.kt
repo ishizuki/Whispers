@@ -16,21 +16,14 @@ class WhisperContext private constructor(private var ptr: Long) {
         Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     )
 
-    suspend fun transcribeData(data: FloatArray, lang: String, printTimestamp: Boolean = true): String = withContext(scope.coroutineContext) {
+    suspend fun transcribeData(data: FloatArray, lang: String, translate: Boolean, printTimestamp: Boolean = true): String = withContext(scope.coroutineContext) {
         require(ptr != 0L)
         val numThreads = WhisperCpuConfig.preferredThreadCount
         Log.d(LOG_TAG, "Selecting $numThreads threads")
-        WhisperLib.fullTranscribe(ptr, lang, numThreads, data)
+        WhisperLib.fullTranscribe(ptr, lang, numThreads, translate, data)
         val textCount = WhisperLib.getTextSegmentCount(ptr)
         return@withContext buildString {
             for (i in 0 until textCount) {
-//                if (printTimestamp) {
-//                    val textTimestamp = "[${toTimestamp(WhisperLib.getTextSegmentT0(ptr, i))} --> ${toTimestamp(WhisperLib.getTextSegmentT1(ptr, i))}]"
-//                    val textSegment = WhisperLib.getTextSegment(ptr, i)
-//                    append("$textTimestamp: $textSegment\n")
-//                } else {
-//                    append(WhisperLib.getTextSegment(ptr, i))
-//                }
                 append(WhisperLib.getTextSegment(ptr, i))
             }
         }
@@ -131,18 +124,18 @@ private class WhisperLib {
         }
 
         // JNI methods
-        external fun initContextFromInputStream(inputStream: InputStream): Long
-        external fun initContextFromAsset(assetManager: AssetManager, assetPath: String): Long
-        external fun initContext(modelPath: String): Long
-        external fun freeContext(contextPtr: Long)
-        external fun fullTranscribe(contextPtr: Long, lang: String, numThreads: Int, audioData: FloatArray)
-        external fun getTextSegmentCount(contextPtr: Long): Int
-        external fun getTextSegment(contextPtr: Long, index: Int): String
-        external fun getTextSegmentT0(contextPtr: Long, index: Int): Long
-        external fun getTextSegmentT1(contextPtr: Long, index: Int): Long
-        external fun getSystemInfo(): String
-        external fun benchMemcpy(nthread: Int): String
-        external fun benchGgmlMulMat(nthread: Int): String
+        @JvmStatic external fun initContextFromInputStream(inputStream: InputStream): Long
+        @JvmStatic external fun initContextFromAsset(assetManager: AssetManager, assetPath: String): Long
+        @JvmStatic external fun initContext(modelPath: String): Long
+        @JvmStatic external fun freeContext(contextPtr: Long)
+        @JvmStatic external fun fullTranscribe(contextPtr: Long, lang: String, numThreads: Int, translate: Boolean, audioData: FloatArray)
+        @JvmStatic external fun getTextSegmentCount(contextPtr: Long): Int
+        @JvmStatic external fun getTextSegment(contextPtr: Long, index: Int): String
+        @JvmStatic external fun getTextSegmentT0(contextPtr: Long, index: Int): Long
+        @JvmStatic external fun getTextSegmentT1(contextPtr: Long, index: Int): Long
+        @JvmStatic external fun getSystemInfo(): String
+        @JvmStatic external fun benchMemcpy(nthread: Int): String
+        @JvmStatic external fun benchGgmlMulMat(nthread: Int): String
     }
 }
 
