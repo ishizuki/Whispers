@@ -11,7 +11,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,7 +18,6 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -172,7 +170,7 @@ private fun TopBar(viewModel: MainScreenViewModel) {
         },
         actions = {
             IconButton(onClick = { showAboutDialog = true }) {
-                Icon(Icons.Default.Info, contentDescription = "アプリ情報")
+                Icon(Icons.Default.Info, contentDescription = "App Info")
             }
             ConfigButtonWithDialog(viewModel)
         },
@@ -195,7 +193,7 @@ private fun AboutDialog(onDismiss: () -> Unit) {
         title = { Text("このアプリについて") },
         text = {
             Column {
-                Text("Whisper App v1.0")
+                Text("Whisper App v0.0.1")
                 Spacer(Modifier.height(8.dp))
                 Text("このアプリは Whisper.cpp を使用して音声認識を行うオフライン録音アプリです。")
                 Spacer(Modifier.height(4.dp))
@@ -206,7 +204,7 @@ private fun AboutDialog(onDismiss: () -> Unit) {
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("閉じる")
+                Text("Close")
             }
         }
     )
@@ -232,7 +230,7 @@ private fun LanguageLabel(
         color = MaterialTheme.colorScheme.secondaryContainer,
         tonalElevation = 2.dp,
         modifier = modifier
-            .defaultMinSize(minHeight = 36.dp) // TopAppBarと似た高さに合わせる
+            .defaultMinSize(minHeight = 36.dp)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
@@ -242,16 +240,6 @@ private fun LanguageLabel(
             Text("Language: $label", style = MaterialTheme.typography.labelSmall)
             Text("Model: $selectedModel", style = MaterialTheme.typography.labelSmall)
         }
-//        Row(
-//            verticalAlignment = Alignment.CenterVertically,
-//            modifier = Modifier
-//                .padding(horizontal = 8.dp)
-//                .heightIn(min = 32.dp) // Textが潰れない最低限の高さを確保
-//        ) {
-//            Text("Lang: $label", style = MaterialTheme.typography.labelSmall)
-//            Spacer(modifier = Modifier.width(6.dp))
-//            Text("Model: $selectedModel", style = MaterialTheme.typography.labelSmall)
-//        }
     }
 }
 
@@ -346,10 +334,10 @@ private fun RecordingList(
 private fun ConfirmDeleteDialog(onConfirm: () -> Unit, onCancel: () -> Unit) {
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("録音の削除") },
-        text = { Text("この録音を削除してもよろしいですか？") },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("削除", color = MaterialTheme.colorScheme.error) } },
-        dismissButton = { TextButton(onClick = onCancel) { Text("キャンセル") } }
+        title = { Text("Delete Recording") },
+        text = { Text("Are you sure you want to delete this recording?") },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Delete", color = MaterialTheme.colorScheme.error) } },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } }
     )
 }
 
@@ -373,12 +361,10 @@ fun StyledButton(
     }
 }
 
-//MODEL_NAMES=("ggml-small-q8_0.bin" "ggml-small-q5_1.bin" "ggml-base-q8_0.bin" "ggml-base-q5_1.bin" "ggml-tiny-q8_0.bin" "ggml-tiny-q5_1.bin")
-
 @Composable
 fun ConfigButtonWithDialog(viewModel: MainScreenViewModel) {
     val languageOptions = listOf(
-        "ja" to "日本語",
+        "ja" to "Japanese",
         "en" to "English",
         "sw" to "Swahili",
         "es" to "Spanish (Español)",
@@ -398,18 +384,18 @@ fun ConfigButtonWithDialog(viewModel: MainScreenViewModel) {
     var expandedModel by remember { mutableStateOf(false) }
 
     IconButton(onClick = { viewModel.openConfigDialog() }) {
-        Icon(Icons.Default.Settings, contentDescription = "設定")
+        Icon(Icons.Default.Settings, contentDescription = "Settings")
     }
 
     if (viewModel.isConfigDialogOpen) {
         AlertDialog(
             onDismissRequest = { viewModel.closeConfigDialog() },
-            title = { Text("設定") },
+            title = { Text("Setting") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     DropdownSelector(
-                        label = "言語を選択してください",
-                        selected = languageOptions.find { it.first == viewModel.selectedLanguage }?.second ?: "選択",
+                        label = "Please select a language.",
+                        selected = languageOptions.find { it.first == viewModel.selectedLanguage }?.second ?: "?",
                         options = languageOptions,
                         onSelect = { viewModel.updateSelectedLanguage(it) },
                         expanded = expandedLang,
@@ -420,8 +406,8 @@ fun ConfigButtonWithDialog(viewModel: MainScreenViewModel) {
                     Divider()
 
                     DropdownSelector(
-                        label = "モデルを選択してください",
-                        selected = modelOptions.find { it.first == viewModel.selectedModel }?.second ?: "選択",
+                        label = "Please select a model.",
+                        selected = modelOptions.find { it.first == viewModel.selectedModel }?.second ?: "?",
                         options = modelOptions,
                         onSelect = { viewModel.updateSelectedModel(it) },
                         expanded = expandedModel,
@@ -437,12 +423,12 @@ fun ConfigButtonWithDialog(viewModel: MainScreenViewModel) {
                             onCheckedChange = { viewModel.updateTranslate(it) }
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("英語に翻訳する")
+                        Text("Translate to English")
                     }
                 }
             },
             confirmButton = { TextButton(onClick = { viewModel.closeConfigDialog() }) { Text("OK") } },
-            dismissButton = { TextButton(onClick = { viewModel.closeConfigDialog() }) { Text("キャンセル") } }
+            dismissButton = { TextButton(onClick = { viewModel.closeConfigDialog() }) { Text("Cancel") } }
         )
     }
 }

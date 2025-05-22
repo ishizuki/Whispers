@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import whispers.ui.main.GameApp
 import whispers.ui.main.MainScreenEntryPoint
 import whispers.ui.main.MainScreenViewModel
 import whispers.ui.theme.WhisperCppDemoTheme
@@ -16,7 +15,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             WhisperCppDemoTheme {
-                GameApp(viewModel)
+                MainScreenEntryPoint(viewModel)
             }
         }
     }
